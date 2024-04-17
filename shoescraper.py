@@ -38,6 +38,7 @@ def scrape_nike_shoes(url):
     shoe_listings = soup.find_all('div', class_='product-card')
     print("hello")
     print("hello")
+    print("hi?")
     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # Iterate over each shoe listing and extract relevant information
     for shoe_listing in shoe_listings:
