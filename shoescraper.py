@@ -1,50 +1,93 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
+import time
 import json
-total = 0
+import datetime
+import re
+
 def scrape_nike_shoes(url):
     total = 0
     shoes_data = []
 
-    # Send a GET request to the URL
-    response = requests.get(url)
+    # Set up the browser
+    driver = webdriver.Chrome()  # You can change this to your preferred browser driver
+    driver.get(url)
 
-    # Check if request was successful
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
+    # Scroll down to the bottom of the page to load all content
+    last_height = driver.execute_script("return document.body.scrollHeight")
 
-        # Find all shoe listings on the page
-        shoe_listings = soup.find_all('div', class_='product-card')
+    while True:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)  # Adjust this value as needed
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
 
-        # Iterate over each shoe listing and extract relevant information
-        for shoe_listing in shoe_listings:
-            total = total + 1
-            name = shoe_listing.find('div', class_='product-card__title').text.strip()
-            brand = shoe_listing.find('div', class_='product-card__subtitle').text.strip()
-            price = shoe_listing.find('div', class_='product-price').text.strip()
-            # You can add more attributes like color, size, etc. if available
+    # Once all content is loaded, get the page source
+    page_source = driver.page_source
+    driver.quit()  # Close the browser
 
-            # Store shoe data in a dictionary
-            shoe_data = {
-                'name': name,
-                'brand': brand,
-                'price': price
-            }
+    # Use Beautiful Soup to parse the page source
+    soup = BeautifulSoup(page_source, 'html.parser')
 
-            shoes_data.append(shoe_data)
+    # Find all shoe listings on the page
+    shoe_listings = soup.find_all('div', class_='product-card')
 
+    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Iterate over each shoe listing and extract relevant information
+    for shoe_listing in shoe_listings:
+        total = total + 1
+        name = shoe_listing.find('div', class_='product-card__title').text.strip()
+        brand = shoe_listing.find('div', class_='product-card__subtitle').text.strip()
+        #Original price
+        #Still picking up percent off bullshit on the site
+        price_element = shoe_listing.find('div', class_='product-card__price')
+        if price_element:
+            #splits $
+            price_parts = price_element.text.strip().split("$")
+            #takes everything but $
+            original_price_str = price_parts[-1].strip()
+            #changing to float to calculate discount later
+            price = float(original_price_str)
+        else:
+            price = None
+            
+        #Reduced price
+        reduced_price_element = shoe_listing.find('div', class_='product-price')
+        if reduced_price_element:
+            reduced_price_element = reduced_price_element.text.strip()
+            #just validating data isn't bullshit
+            reduced_price = float(re.sub(r'[^0-9.]', '', reduced_price_element))
+        else:
+            reduced_price = None
+
+        #discount
+        if price == float:
+            discount = round((price - reduced_price)/(price), 3)
+        else:
+            discount = None
+
+        # Store shoe data in a dictionary
+        shoe_data = {
+            'name': name,
+            'brand': brand,
+            'price': price,
+            'reduced price': reduced_price,
+            'timestamp': current_datetime,
+            'discount': discount
+        }
+
+        shoes_data.append(shoe_data)
+    print(str(total) + " shoes processed. Data scraped to nike_shoes.json.")
     return shoes_data
 
-# URL of Nike's shoe listings page
-url = 'https://www.nike.com/w/mens-shoes-nik1zy7ok'
+# Example usage
+url = "https://www.nike.com/w/mens-shoes-nik1zy7ok"
 
-# Scrape Nike shoes
-all_nike_shoes = scrape_nike_shoes(url)
-
-# Save scraped shoe data to a JSON file
-with open('nike_shoes.json', 'w') as json_file:
-    json.dump(all_nike_shoes, json_file, indent=4)
-
-print("Scraped shoe data has been saved to nike_shoes.json file.")
-print(total)
-print("HEY")
+data = scrape_nike_shoes(url)
+with open("nike_shoes.json", "w") as file:
+        json.dump(data, file, indent=4)
