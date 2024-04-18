@@ -26,17 +26,32 @@ def scrape_nike_shoes(url):
         name = shoe_listing.find('div', class_='product-card__title').text.strip()
         brand = shoe_listing.find('div', class_='product-card__subtitle').text.strip()
         #Original price
-        price_element = shoe_listing.find('div', class_='product-card__price')
-        price_parts = price_element.text.strip().split("$")
-        original_price_str = price_parts[-1].strip()
-        price = float(original_price_str)
-            
+        price_element = shoe_listing.select_one('[data-testid="product-price"]')
+        print(price_element)
+        if price_element:
+            price_parts = price_element.text.strip().split("$")
+            #takes everything but $
+            original_price_str = price_parts[-1].strip()
+            price = float(original_price_str)
+        else:
+            price = None
         #Reduced price
-        reduced_price_element = shoe_listing.find('div', class_='product-price').text.strip()
-        reduced_price = float(reduced_price_element.replace('$', ''))
+        reduced_price_element = shoe_listing.find('div', {'data-testid': 'product-price-reduced'})
+
+        print(reduced_price_element)
+        if reduced_price_element:
+            reduced_price_parts = reduced_price_element.text.strip().split("$")
+            #takes everything but $
+            original_reduced_price_str = reduced_price_parts[-1].strip()
+            reduced_price = float(original_reduced_price_str)
+        else:
+            reduced_price = None
 
         #discount
-        discount = round((price - reduced_price)/(price), 3)
+        if price is None or reduced_price is None:
+            discount = None
+        else:
+            discount = round((price - reduced_price)/(price), 3)
 
         # Store shoe data in a dictionary
         shoe_data = {
@@ -47,7 +62,6 @@ def scrape_nike_shoes(url):
             'timestamp': current_datetime,
             'discount': discount
         }
-
         shoes_data.append(shoe_data)
     print(str(total) + " shoes processed. Data scraped to test.json.")
     return shoes_data

@@ -9,6 +9,7 @@ import datetime
 import re
 
 def scrape_nike_shoes(url):
+    pattern = r'[a-z%\s]'
     total = 0
     shoes_data = []
 
@@ -44,32 +45,33 @@ def scrape_nike_shoes(url):
         name = shoe_listing.find('div', class_='product-card__title').text.strip()
         brand = shoe_listing.find('div', class_='product-card__subtitle').text.strip()
         #Original price
-        #Still picking up percent off bullshit on the site
-        price_element = shoe_listing.find('div', class_='product-card__price')
+        price_element = shoe_listing.select_one('[data-testid="product-price"]')
+        print(price_element)
         if price_element:
-            #splits $
             price_parts = price_element.text.strip().split("$")
             #takes everything but $
             original_price_str = price_parts[-1].strip()
-            #changing to float to calculate discount later
             price = float(original_price_str)
         else:
             price = None
-            
+
         #Reduced price
-        reduced_price_element = shoe_listing.find('div', class_='product-price')
+        reduced_price_element = shoe_listing.find('div', {'data-testid': 'product-price-reduced'})
+        print(reduced_price_element)
         if reduced_price_element:
-            reduced_price_element = reduced_price_element.text.strip()
-            #just validating data isn't bullshit
-            reduced_price = float(re.sub(r'[^0-9.]', '', reduced_price_element))
+            reduced_price_parts = reduced_price_element.text.strip().split("$")
+            #takes everything but $
+            original_reduced_price_str = reduced_price_parts[-1].strip()
+            reduced_price = float(original_reduced_price_str)
         else:
             reduced_price = None
 
         #discount
-        if price == float:
-            discount = round((price - reduced_price)/(price), 3)
-        else:
+        if price is None or reduced_price is None:
             discount = None
+        else:
+            discount = round((price - reduced_price)/(price), 3)
+
 
         # Store shoe data in a dictionary
         shoe_data = {
