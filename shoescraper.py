@@ -9,7 +9,6 @@ import datetime
 import re
 
 def scrape_nike_shoes(url):
-    pattern = r'[a-z%\s]'
     total = 0
     shoes_data = []
 
@@ -46,7 +45,6 @@ def scrape_nike_shoes(url):
         brand = shoe_listing.find('div', class_='product-card__subtitle').text.strip()
         #Original price
         price_element = shoe_listing.select_one('[data-testid="product-price"]')
-        print(price_element)
         if price_element:
             price_parts = price_element.text.strip().split("$")
             #takes everything but $
@@ -57,7 +55,6 @@ def scrape_nike_shoes(url):
 
         #Reduced price
         reduced_price_element = shoe_listing.find('div', {'data-testid': 'product-price-reduced'})
-        print(reduced_price_element)
         if reduced_price_element:
             reduced_price_parts = reduced_price_element.text.strip().split("$")
             #takes everything but $
@@ -77,10 +74,12 @@ def scrape_nike_shoes(url):
         shoe_data = {
             'name': name,
             'brand': brand,
-            'price': price,
-            'reduced price': reduced_price,
-            'timestamp': current_datetime,
-            'discount': discount
+            'prices': [{
+                'price': price,
+                'reduced_price': reduced_price,
+                'timestamp': current_datetime,
+                'discount': discount
+            }]
         }
 
         shoes_data.append(shoe_data)
@@ -93,3 +92,4 @@ url = "https://www.nike.com/w/mens-shoes-nik1zy7ok"
 data = scrape_nike_shoes(url)
 with open("nike_shoes.json", "w") as file:
         json.dump(data, file, indent=4)
+        
