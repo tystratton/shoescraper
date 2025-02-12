@@ -1,2 +1,2 @@
 # shoescraper
-Project to learn HTML scraping
+Project to learn practice Data Engineering
