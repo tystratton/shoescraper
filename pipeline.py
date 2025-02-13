@@ -1,9 +1,37 @@
 #Nike Shoescraper Program
 #Ty Stratton
 #see requirements.txt for more info
+"""
+Variables
+--------------------------------
+Database Variables:
+DB_NAME     - PostgreSQL database name from environment variable
+DB_USER     - Database username from environment variable
+DB_PASSWORD - Database password from environment variable
+DB_HOST     - Database host address from environment variable
+conn        - PostgreSQL database connection object
+cursor      - Database cursor for executing queries
 
-##Variables
-##--
+Scraper Variables:
+processed       - Counter for total shoes processed in current scrape
+processed_new   - Counter for new price entries added
+processed_shoes - Set to track unique shoes in current scrape to prevent duplicates
+url            - Nike shoes webpage URL being scraped
+chrome_options  - Selenium Chrome browser configuration settings
+
+Shoe Data Variables:
+name            - Full name of the shoe
+type            - Category of shoe (Mens, Womens, Kids, etc.)
+available_color - Number of color variations available
+colorway_code   - Unique identifier for specific shoe color variant
+url            - Direct link to the shoe's product page
+price          - Original/full price of the shoe
+reduced_price   - Sale price if available, None if not on sale
+discount       - Calculated percentage discount from original price
+
+Logging:
+log_filename   - Path and name of current log file with timestamp
+"""
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -17,6 +45,10 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 import logging
+from logging.handlers import RotatingFileHandler
+import random
+from collections import defaultdict
+import json
 
 load_dotenv()
 # Load credentials from environment variables
@@ -38,13 +70,14 @@ cursor = conn.cursor()
 # Create logs directory if it doesn't exist
 os.makedirs('logs', exist_ok=True)
 
-# Set up logging configuration with logs directory
+# Set up logging with rotation
 log_filename = os.path.join('logs', f"nike_scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-logging.basicConfig(
-    filename=log_filename,
-    level=logging.INFO,  # Changed to INFO to capture both errors and info messages
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+handler = RotatingFileHandler(log_filename, maxBytes=1024*1024, backupCount=5)  # 1MB per file, keep 5 files
+handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
 
 def setup_error_logging():
     if not logging.getLogger().handlers:
@@ -60,6 +93,39 @@ def log_error(message):
     if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger().handlers):
         setup_error_logging()
     logging.error(message)
+
+def create_status_report(missing_counts, total_processed):
+    status_report = {
+        'name': {
+            'warning': missing_counts['name'] >= 1,
+            'danger': missing_counts['name'] >= 25,
+            'count': missing_counts['name']
+        },
+        'brand': {
+            'warning': missing_counts['brand'] >= 1,
+            'danger': missing_counts['brand'] >= 25,
+            'count': missing_counts['brand']
+        },
+        'color': {
+            'warning': missing_counts['color'] >= 1,
+            'danger': missing_counts['color'] >= 25,
+            'count': missing_counts['color']
+        },
+        'url': {
+            'warning': missing_counts['url'] >= 1,
+            'danger': missing_counts['url'] >= 25,
+            'count': missing_counts['url']
+        },
+        'price_wrapper': {
+            'warning': missing_counts['price_wrapper'] >= 1,
+            'danger': missing_counts['price_wrapper'] >= 25,
+            'count': missing_counts['price_wrapper']
+        }
+    }
+    
+    # Write status report
+    with open('scraper_status.json', 'w') as f:
+        json.dump(status_report, f, indent=4)
 
 def scrape_nike_shoes(url):
     processed = 0
@@ -113,6 +179,10 @@ def scrape_nike_shoes(url):
     shoe_listings = soup.find_all('div', class_='product-card')
     print(f"Found {len(shoe_listings)} shoe listings")
 
+    # Initialize counter for missing elements
+    missing_counts = defaultdict(int)
+    total_processed = 0
+
     # Iterate over each shoe listing and extract relevant information
     for shoe_listing in shoe_listings:
         try:
@@ -126,20 +196,49 @@ def scrape_nike_shoes(url):
             
             if not all([name_elem, brand_elem, color_elem, url_elem]):
                 log_error(f"Missing data for shoe {processed}:")
-                if not name_elem: log_error("Missing name element")
-                if not brand_elem: log_error("Missing brand element")
-                if not color_elem: log_error("Missing color element")
-                if not url_elem: log_error("Missing URL element")
+                if not name_elem: 
+                    log_error("Missing name element")
+                    missing_counts['name'] += 1
+                if not brand_elem: 
+                    log_error("Missing brand element")
+                    missing_counts['brand'] += 1
+                if not color_elem: 
+                    log_error("Missing color element")
+                    missing_counts['color'] += 1
+                if not url_elem: 
+                    log_error("Missing URL element")
+                    missing_counts['url'] += 1
                 continue
                 
             name = name_elem.text.strip()
-            brand = brand_elem.text.strip()
-            available_color = color_elem.text.strip()
+            
+            # Skip gift cards
+            if "Gift Card" in name:
+                logging.info(f"Skipping gift card product: {name}")
+                continue
+            
+            type = (brand_elem.text.strip()
+                   .replace("'s", "s")      # Convert "Men's" to "Mens"
+                   .replace("s'", "s")       # Convert "Kids'" to "Kids"
+                   .replace("/", " ")        # Convert "Baby/Toddler" to "Baby Toddler"
+                   .replace(" Shoes", "")    # Remove " Shoes" from the end
+                   .replace("-", " ")        # Convert hyphens to spaces
+                   .replace("(", "")         # Remove opening parentheses
+                   .replace(")", "")         # Remove closing parentheses
+                   .strip())                # Remove any extra spaces
+            
+            # Skip entries that are just "Shoes"
+            if type == "Shoes":
+                logging.info(f"Skipping generic 'Shoes' entry: {name}")
+                continue
+            
+            available_color_text = color_elem.text.strip()
+            available_color = int(available_color_text.split()[0])
             url = url_elem['href']
             
             logging.info(f"\nProcessing shoe {processed}:")
             logging.info(f"Name: {name}")
-            logging.info(f"Brand: {brand}")
+            logging.info(f"Type: {type}")
             logging.info(f"Colors: {available_color}")
             logging.info(f"URL: {url}")
             
@@ -155,6 +254,11 @@ def scrape_nike_shoes(url):
                 # Extract price information
                 price_wrapper = shoe_listing.find('div', class_='product-card__price')
                 
+                if not price_wrapper: 
+                    log_error("Missing price wrapper element")
+                    missing_counts['price_wrapper'] += 1
+                    continue
+                    
                 if price_wrapper:
                     # Look for reduced (current) price first
                     reduced_price_elem = price_wrapper.find('div', {'data-testid': 'product-price-reduced'})
@@ -190,14 +294,15 @@ def scrape_nike_shoes(url):
                 
                 # Insert/update the shoe and get its ID
                 cursor.execute("""
-                    INSERT INTO shoes (name, brand, available_color, url, colorway_code)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO shoes (name, type, available_color, url, colorway_code, brand)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (name, colorway_code) DO UPDATE 
-                    SET brand = EXCLUDED.brand,
+                    SET type = EXCLUDED.type,
                         available_color = EXCLUDED.available_color,
-                        url = EXCLUDED.url
+                        url = EXCLUDED.url,
+                        brand = EXCLUDED.brand
                     RETURNING id;
-                """, (name, brand, available_color, url, colorway_code))
+                """, (name, type, available_color, url, colorway_code, 'Nike'))
                 
                 shoe_id = cursor.fetchone()[0]
                 
@@ -230,6 +335,9 @@ def scrape_nike_shoes(url):
     print(f"Shoes processed: {processed}")
     print(f"New entries added: {processed_new}")
 
+    # After processing all shoes, create status report
+    create_status_report(missing_counts, processed)
+
     return processed, processed_new
 
 def run_scraper():
@@ -251,16 +359,18 @@ def start_scheduler():
     # Run once immediately when started
     run_scraper()
     
-    # Schedule to run every 30 minutes
-    schedule.every(30).minutes.do(run_scraper)
-    
-    # Keep the script running
+    # Schedule to run every hour with random variance (±5 minutes)
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        # Sleep for 55-65 minutes (3300-3900 seconds)
+        sleep_time = random.randint(3300, 3900)
+        minutes = sleep_time // 60
+        seconds = sleep_time % 60
+        logging.info(f"Next scrape scheduled in {minutes} minutes and {seconds} seconds")
+        time.sleep(sleep_time)
+        run_scraper()
 
 if __name__ == "__main__":
-    print("Nike Shoe Scraper Scheduler Started")
-    print("Will run every 30 minutes")
+    print("Soul Search Starting")
+    print("Will run approximately every hour")
     print("Press Ctrl+C to stop")
     start_scheduler()

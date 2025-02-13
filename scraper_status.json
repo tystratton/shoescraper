@@ -1,0 +1,27 @@
+{
+    "name": {
+        "warning": false,
+        "danger": false,
+        "count": 0
+    },
+    "brand": {
+        "warning": false,
+        "danger": false,
+        "count": 0
+    },
+    "color": {
+        "warning": false,
+        "danger": false,
+        "count": 0
+    },
+    "url": {
+        "warning": false,
+        "danger": false,
+        "count": 0
+    },
+    "price_wrapper": {
+        "warning": false,
+        "danger": false,
+        "count": 0
+    }
+}
