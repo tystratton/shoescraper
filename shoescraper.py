@@ -11,14 +11,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
-import json
-import datetime
+from datetime import datetime
 import schedule
 import psycopg2
 import os
 from dotenv import load_dotenv
-load_dotenv()
+import logging
 
+load_dotenv()
 # Load credentials from environment variables
 DB_NAME = os.getenv("PG_DB")
 DB_USER = os.getenv("PG_USER")
@@ -35,9 +35,36 @@ conn = psycopg2.connect(
 )
 cursor = conn.cursor()
 
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
+
+# Set up logging configuration with logs directory
+log_filename = os.path.join('logs', f"nike_scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+logging.basicConfig(
+    filename=log_filename,
+    level=logging.INFO,  # Changed to INFO to capture both errors and info messages
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+def setup_error_logging():
+    if not logging.getLogger().handlers:
+        log_filename = os.path.join('logs', f"nike_scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+        os.makedirs('logs', exist_ok=True)
+        handler = logging.FileHandler(log_filename)
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(handler)
+        logging.getLogger().setLevel(logging.ERROR)
+
+# Add this at the start of any error logging
+def log_error(message):
+    if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger().handlers):
+        setup_error_logging()
+    logging.error(message)
+
 def scrape_nike_shoes(url):
     processed = 0
     processed_new = 0
+    processed_shoes = set()
 
     # Set up the browser with options
     chrome_options = webdriver.ChromeOptions()
@@ -48,11 +75,15 @@ def scrape_nike_shoes(url):
     chrome_options.add_argument('--window-size=1920,1080')
     chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
     
-    driver = webdriver.Chrome(options=chrome_options)
-    driver.get(url)
+    try:
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url)
+    except Exception as e:
+        log_error(f"Failed to initialize browser: {str(e)}")
+        return processed, processed_new
 
     # Wait for initial content to load
-    time.sleep(2)
+    time.sleep(5)
     
     # Scroll to load all products
     last_height = driver.execute_script("return document.body.scrollHeight")
@@ -61,7 +92,7 @@ def scrape_nike_shoes(url):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         
         # Wait to load page
-        time.sleep(2)
+        time.sleep(5)
         
         # Calculate new scroll height and compare with last scroll height
         new_height = driver.execute_script("return document.body.scrollHeight")
@@ -94,11 +125,11 @@ def scrape_nike_shoes(url):
             url_elem = shoe_listing.find('a', class_='product-card__link-overlay')
             
             if not all([name_elem, brand_elem, color_elem, url_elem]):
-                print(f"Missing data for shoe {processed}")
-                print(f"name_elem: {name_elem}")
-                print(f"brand_elem: {brand_elem}")
-                print(f"color_elem: {color_elem}")
-                print(f"url_elem: {url_elem}")
+                log_error(f"Missing data for shoe {processed}:")
+                if not name_elem: log_error("Missing name element")
+                if not brand_elem: log_error("Missing brand element")
+                if not color_elem: log_error("Missing color element")
+                if not url_elem: log_error("Missing URL element")
                 continue
                 
             name = name_elem.text.strip()
@@ -106,24 +137,58 @@ def scrape_nike_shoes(url):
             available_color = color_elem.text.strip()
             url = url_elem['href']
             
-            print(f"\nProcessing shoe {processed}:")
-            print(f"Name: {name}")
-            print(f"Brand: {brand}")
-            print(f"Colors: {available_color}")
-            print(f"URL: {url}")
+            logging.info(f"\nProcessing shoe {processed}:")
+            logging.info(f"Name: {name}")
+            logging.info(f"Brand: {brand}")
+            logging.info(f"Colors: {available_color}")
+            logging.info(f"URL: {url}")
             
             try:
                 # Extract colorway code from URL
-                colorway_code = url.split('/')[-1]  # Gets the last part of the URL (e.g., 'HV6425-100')
+                colorway_code = url.split('/')[-1]
                 
-                print("\n=== SHOE PROCESSING DEBUG ===")
-                print(f"Name: {name}")
-                print(f"URL: {url}")
-                print(f"Brand: {brand}")
-                print(f"Available Colors: {available_color}")
-                print(f"Colorway Code: {colorway_code}")
+                # Initialize price variables
+                price = None
+                reduced_price = None
+                discount = None
+
+                # Extract price information
+                price_wrapper = shoe_listing.find('div', class_='product-card__price')
                 
-                # First insert/update the shoe and get its ID
+                if price_wrapper:
+                    # Look for reduced (current) price first
+                    reduced_price_elem = price_wrapper.find('div', {'data-testid': 'product-price-reduced'})
+                    if reduced_price_elem:
+                        reduced_price_text = reduced_price_elem.text.strip().replace('$', '')
+                        try:
+                            reduced_price = float(reduced_price_text)
+                        except ValueError:
+                            reduced_price = None
+                    
+                    # Look for original price
+                    original_price_elem = price_wrapper.find('div', {'data-testid': 'product-price'})
+                    if original_price_elem:
+                        original_price_text = original_price_elem.text.strip().replace('$', '')
+                        try:
+                            price = float(original_price_text)
+                        except ValueError:
+                            price = None
+                    
+                    # If no reduced price found, the original price is the current price
+                    if reduced_price is None and price is None:
+                        current_price_elem = price_wrapper.find('div', {'class': 'product-price is--current-price'})
+                        if current_price_elem:
+                            current_price_text = current_price_elem.text.strip().replace('$', '')
+                            try:
+                                price = float(current_price_text)
+                            except ValueError:
+                                price = None
+
+                    # Calculate discount if we have both prices
+                    if price and reduced_price:
+                        discount = round(((price - reduced_price) / price) * 100, 2)
+                
+                # Insert/update the shoe and get its ID
                 cursor.execute("""
                     INSERT INTO shoes (name, brand, available_color, url, colorway_code)
                     VALUES (%s, %s, %s, %s, %s)
@@ -135,105 +200,29 @@ def scrape_nike_shoes(url):
                 """, (name, brand, available_color, url, colorway_code))
                 
                 shoe_id = cursor.fetchone()[0]
-                print(f"Shoe ID: {shoe_id}")
                 
-                # Initialize price variables
-                price = None
-                reduced_price = None
-
-                # Extract price information
-                price_wrapper = shoe_listing.find('div', class_='product-card__price')
-                print(f"DEBUG - Price wrapper found: {price_wrapper is not None}")
-                
-                if price_wrapper:
-                    print(f"DEBUG - Full price wrapper HTML:")
-                    print(price_wrapper.prettify())
+                # In the shoe processing loop:
+                shoe_key = f"{name}_{colorway_code}"
+                if shoe_key in processed_shoes:
+                    print(f"Skipping duplicate shoe: {name} ({colorway_code})")
+                    continue
                     
-                    # Look for reduced (current) price first
-                    reduced_price_elem = price_wrapper.find('div', {'data-testid': 'product-price-reduced'})
-                    if reduced_price_elem:
-                        reduced_price_text = reduced_price_elem.text.strip().replace('$', '')
-                        try:
-                            reduced_price = float(reduced_price_text)
-                            print(f"DEBUG - Found reduced price: ${reduced_price}")
-                        except ValueError:
-                            print(f"DEBUG - Could not convert reduced price: {reduced_price_text}")
-                            reduced_price = None
-                    
-                    # Look for original price
-                    original_price_elem = price_wrapper.find('div', {'data-testid': 'product-price'})
-                    if original_price_elem:
-                        original_price_text = original_price_elem.text.strip().replace('$', '')
-                        try:
-                            price = float(original_price_text)
-                            print(f"DEBUG - Found original price: ${price}")
-                        except ValueError:
-                            print(f"DEBUG - Could not convert original price: {original_price_text}")
-                            price = None
-                    
-                    # If no reduced price found, the original price is the current price
-                    if reduced_price is None and price is None:
-                        current_price_elem = price_wrapper.find('div', {'class': 'product-price is--current-price'})
-                        if current_price_elem:
-                            current_price_text = current_price_elem.text.strip().replace('$', '')
-                            try:
-                                price = float(current_price_text)
-                                print(f"DEBUG - Found current price: ${price}")
-                            except ValueError:
-                                print(f"DEBUG - Could not convert current price: {current_price_text}")
-                                price = None
+                processed_shoes.add(shoe_key)
                 
-                print(f"DEBUG - Final values - Price: ${price}, Reduced: ${reduced_price}")
-                
-                # Calculate discount
-                if price is not None and reduced_price is not None:
-                    discount = round((price - reduced_price)/(price), 3)
-                else:
-                    discount = None
-                
-                # Check existing prices for this shoe today
+                # Always insert the current price
                 cursor.execute("""
-                    SELECT original_price, reduced_price, timestamp 
-                    FROM prices 
-                    WHERE shoe_id = %s 
-                    AND timestamp::date = CURRENT_DATE
-                    ORDER BY timestamp DESC
-                    LIMIT 1
-                """, (shoe_id,))
-                
-                existing_price = cursor.fetchone()
-                if existing_price:
-                    print(f"Found existing price record today:")
-                    print(f"Original: ${existing_price[0]}, Reduced: ${existing_price[1]}")
-                    print(f"Timestamp: {existing_price[2]}")
-                    print(f"Current price values - Original: ${price}, Reduced: ${reduced_price}")
-                    
-                    # Only insert if price has changed
-                    if existing_price[0] != price or existing_price[1] != reduced_price:
-                        cursor.execute("""
-                            INSERT INTO prices (shoe_id, original_price, reduced_price, discount)
-                            VALUES (%s, %s, %s, %s)
-                        """, (shoe_id, price, reduced_price, discount))
-                        conn.commit()
-                        print("Price changed - inserted new record")
-                    else:
-                        print("Price unchanged - skipping insert")
-                else:
-                    cursor.execute("""
-                        INSERT INTO prices (shoe_id, original_price, reduced_price, discount)
-                        VALUES (%s, %s, %s, %s)
-                    """, (shoe_id, price, reduced_price, discount))
-                    conn.commit()
-                    print("No existing price today - inserted new record")
-                
-                print("=== END PROCESSING ===\n")
+                    INSERT INTO prices (shoe_id, original_price, reduced_price, discount)
+                    VALUES (%s, %s, %s, %s)
+                """, (shoe_id, price, reduced_price, discount))
+                conn.commit()
+                processed_new += 1
                 
             except Exception as e:
-                print(f"Database error: {str(e)}")
+                log_error(f"Database error: {str(e)}")
                 conn.rollback()
                 
         except Exception as e:
-            print(f"Error processing shoe {processed}: {str(e)}")
+            log_error(f"Error processing shoe {processed}: {str(e)}")
             continue
 
     print(f"\nScraping Summary:")
@@ -241,17 +230,22 @@ def scrape_nike_shoes(url):
     print(f"Shoes processed: {processed}")
     print(f"New entries added: {processed_new}")
 
+    return processed, processed_new
 
-# Move your existing scraping code into a function
 def run_scraper():
-    current_time = datetime.datetime.now().strftime("%H:%M:%S")
-    print(f"\nStarting scrape at {current_time}")
+    start_time = time.time()
     try:
         nike_url = "https://www.nike.com/w/shoes-y7ok"
-        scrape_nike_shoes(nike_url)
-        print("Scrape completed successfully")
+        processed, processed_new = scrape_nike_shoes(nike_url)
+        
+        duration = time.time() - start_time
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        
+        logging.info(f"Scrape completed - Processed: {processed}, New: {processed_new}, Time: {minutes}m {seconds}s")
+        
     except Exception as e:
-        print(f"Error during scrape: {str(e)}")
+        log_error(f"Error during scrape: {str(e)}")
 
 def start_scheduler():
     # Run once immediately when started
