@@ -506,3 +506,143 @@ a:hover {
 .social-icon:hover img {
     transform: scale(1.1);
 }
+
+/* Data Visualization Dashboard Styles */
+.dashboard-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.dashboard-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.sidebar-section {
+    background-color: #252526;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: #d4d4d4;
+    height: 100%;
+}
+
+.sidebar-section h3 {
+    color: #4ec9b0;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.sidebar-section h4 {
+    color: #d4d4d4;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+.sidebar-section ul {
+    padding-left: 20px;
+    margin-bottom: 20px;
+}
+
+.sidebar-section li {
+    margin-bottom: 8px;
+}
+
+.sidebar-note {
+    background-color: #2d2d2d;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 15px 0;
+    font-size: 0.9rem;
+}
+
+.sidebar-stats {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #3e3e42;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+    flex-grow: 1;
+}
+
+.dashboard-section {
+    background-color: #252526;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: #d4d4d4;
+}
+
+.wide-section {
+    grid-column: 1 / -1;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #3e3e42;
+}
+
+.data-table th {
+    background-color: #2d2d2d;
+    font-weight: bold;
+}
+
+.data-table tr:hover {
+    background-color: #333333;
+}
+
+.data-table tr:nth-child(odd) {
+    background-color: #2a2a2a;
+}
+
+.data-table tr:nth-child(even) {
+    background-color: #252526;
+}
+
+.error-message {
+    color: #f14c4c;
+    background-color: #3c3c3c;
+    border: 1px solid #f14c4c;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 20px;
+}
+
+@media (max-width: 992px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+    
+    .dashboard-sidebar {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}

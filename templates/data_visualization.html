@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shoe Data Visualization</title>
+    <title>Sole Search Data Visualization</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -30,59 +30,88 @@
         <div class="content-wrapper">
             <h1>Shoe Data Analysis Dashboard</h1>
             
-            <div class="dashboard-grid">
-                <div class="dashboard-section">
-                    <h2>Price Distribution</h2>
-                    <div class="chart-container">
-                        <canvas id="priceDistributionChart"></canvas>
+            <div class="dashboard-layout">
+                <div class="dashboard-sidebar">
+                    <div class="sidebar-section">
+                        <h3>Data Analysis Overview</h3>
+                        <p>This dashboard visualizes the complete dataset of shoes from our database, providing analytical insights.</p>
+                        
+                        <h4>Visualization Categories:</h4>
+                        <ul>
+                            <li><strong>Price Distribution</strong> - Statistical breakdown of price ranges across the dataset</li>
+                            <li><strong>Discount Analysis</strong> - Quantitative analysis of discount percentages</li>
+                            <li><strong>Category Distribution</strong> - Frequency analysis of shoe types in the database</li>
+                            <li><strong>Temporal Analysis</strong> - Time-series data showing price fluctuations</li>
+                            <li><strong>Outlier Analysis</strong> - Highlighting significant discount outliers in the dataset</li>
+                        </ul>
+                        
+                        <div class="sidebar-note">
+                            <p><i>Data refreshes automatically with each database update cycle.</i></p>
+                        </div>
+                        
+                        <div class="sidebar-stats">
+                            <h4>Dataset Metrics</h4>
+                            <div id="quickStats">
+                                <!-- The "Loading statistics..." text is a placeholder that will be replaced with actual metrics once the data is fetched and processed by the populateQuickStats() function -->
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="dashboard-section">
-                    <h2>Discount Analysis</h2>
-                    <div class="chart-container">
-                        <canvas id="discountPercentageChart"></canvas>
+                
+                <div class="dashboard-grid">
+                    <div class="dashboard-section">
+                        <h2>Price Distribution</h2>
+                        <div class="chart-container">
+                            <canvas id="priceDistributionChart"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-section">
-                    <h2>Discounted vs Regular</h2>
-                    <div class="chart-container">
-                        <canvas id="discountedVsRegularChart"></canvas>
+                    <div class="dashboard-section">
+                        <h2>Discount Analysis</h2>
+                        <div class="chart-container">
+                            <canvas id="discountPercentageChart"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-section">
-                    <h2>Shoe Types Distribution</h2>
-                    <div class="chart-container">
-                        <canvas id="shoeTypesChart"></canvas>
+                    <div class="dashboard-section">
+                        <h2>Discounted vs Regular</h2>
+                        <div class="chart-container">
+                            <canvas id="discountedVsRegularChart"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-section wide-section">
-                    <h2>Price Trends Over Time</h2>
-                    <div class="chart-container">
-                        <canvas id="priceTrendsChart"></canvas>
+                    <div class="dashboard-section">
+                        <h2>Shoe Types Distribution</h2>
+                        <div class="chart-container">
+                            <canvas id="shoeTypesChart"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-section wide-section">
-                    <h2>Top Discounted Shoes</h2>
-                    <div class="table-container">
-                        <table class="data-table" id="topDiscountedTable">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Original Price</th>
-                                    <th>Reduced Price</th>
-                                    <th>Discount (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Data will be populated here -->
-                            </tbody>
-                        </table>
+                    <div class="dashboard-section wide-section">
+                        <h2>Price Trends Over Time</h2>
+                        <div class="chart-container">
+                            <canvas id="priceTrendsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-section wide-section">
+                        <h2>Top Discounted Shoes</h2>
+                        <div class="table-container">
+                            <table class="data-table" id="topDiscountedTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Original Price</th>
+                                        <th>Reduced Price</th>
+                                        <th>Discount (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -413,10 +442,67 @@
             margin-bottom: 30px;
         }
         
+        .dashboard-layout {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .dashboard-sidebar {
+            width: 280px;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-section {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            color: #333;
+            height: 100%;
+        }
+        
+        .sidebar-section h3 {
+            color: #4ecdc4;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .sidebar-section h4 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .sidebar-section ul {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-section li {
+            margin-bottom: 8px;
+        }
+        
+        .sidebar-note {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+        
+        .sidebar-stats {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
             gap: 20px;
+            flex-grow: 1;
         }
         
         .dashboard-section {
@@ -484,6 +570,16 @@
             padding: 15px;
             border-radius: 4px;
             margin-top: 20px;
+        }
+        
+        @media (max-width: 992px) {
+            .dashboard-layout {
+                flex-direction: column;
+            }
+            
+            .dashboard-sidebar {
+                width: 100%;
+            }
         }
         
         @media (max-width: 768px) {
