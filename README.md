@@ -1,6 +1,6 @@
 # Sole Search API
 
-A web application that monitors and analyzes Nike shoe prices. Built with Python and PostgreSQL, this tool helps users track price changes, pipeline health, and offers an API that queries a database I created by web scraping Nike's website. Database available in this repository.
+A web application and analytics platform with an ETL pipeline that tracks Nike shoe prices through automated web scraping. Built with Python and PostgreSQL, this tool captures and analyzes price adjustments and discount patterns across Nike's entire shoe catalog. It also monitors pipeline health and offers an API for querying the database I built.
 
 ## Features
 - Real-time price monitoring
