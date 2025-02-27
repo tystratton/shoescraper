@@ -40,7 +40,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
 from datetime import datetime
-import schedule
 import psycopg2
 import os
 from dotenv import load_dotenv
@@ -96,6 +95,7 @@ def log_error(message):
 
 def create_status_report(missing_counts, total_processed):
     status_report = {
+        'shoes_processed': total_processed,
         'name': {
             'warning': missing_counts['name'] >= 1,
             'danger': missing_counts['name'] >= 25,
@@ -129,8 +129,10 @@ def create_status_report(missing_counts, total_processed):
 
 def scrape_nike_shoes(url):
     processed = 0
-    processed_new = 0
-    processed_shoes = set()
+    processed_new_prices = 0
+    processed_new_shoes = 0
+
+    new_shoes_added = []  # List will now store tuples of (name, url)
 
     # Set up the browser with options
     chrome_options = webdriver.ChromeOptions()
@@ -146,7 +148,7 @@ def scrape_nike_shoes(url):
         driver.get(url)
     except Exception as e:
         log_error(f"Failed to initialize browser: {str(e)}")
-        return processed, processed_new
+        return processed, processed_new_shoes, processed_new_prices, new_shoes_added
 
     # Wait for initial content to load
     time.sleep(5)
@@ -186,8 +188,6 @@ def scrape_nike_shoes(url):
     # Iterate over each shoe listing and extract relevant information
     for shoe_listing in shoe_listings:
         try:
-            processed += 1
-            
             # Extract data with error checking
             name_elem = shoe_listing.find('div', class_='product-card__title')
             brand_elem = shoe_listing.find('div', class_='product-card__subtitle')
@@ -209,13 +209,15 @@ def scrape_nike_shoes(url):
                     log_error("Missing URL element")
                     missing_counts['url'] += 1
                 continue
-                
+
             name = name_elem.text.strip()
             
             # Skip gift cards
             if "Gift Card" in name:
                 logging.info(f"Skipping gift card product: {name}")
                 continue
+            
+            processed += 1  # Move counter here, after gift card check
             
             type = (brand_elem.text.strip()
                    .replace("'s", "s")      # Convert "Men's" to "Mens"
@@ -226,11 +228,6 @@ def scrape_nike_shoes(url):
                    .replace("(", "")         # Remove opening parentheses
                    .replace(")", "")         # Remove closing parentheses
                    .strip())                # Remove any extra spaces
-            
-            # Skip entries that are just "Shoes"
-            if type == "Shoes":
-                logging.info(f"Skipping generic 'Shoes' entry: {name}")
-                continue
             
             available_color_text = color_elem.text.strip()
             available_color = int(available_color_text.split()[0])
@@ -301,18 +298,17 @@ def scrape_nike_shoes(url):
                         available_color = EXCLUDED.available_color,
                         url = EXCLUDED.url,
                         brand = EXCLUDED.brand
-                    RETURNING id;
+                    RETURNING id, xmax::text = '0' as is_new;
                 """, (name, type, available_color, url, colorway_code, 'Nike'))
                 
-                shoe_id = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                shoe_id = result[0]
+                is_new_shoe = result[1]  # True if this was an INSERT, False if it was an UPDATE
                 
-                # In the shoe processing loop:
-                shoe_key = f"{name}_{colorway_code}"
-                if shoe_key in processed_shoes:
-                    print(f"Skipping duplicate shoe: {name} ({colorway_code})")
-                    continue
-                    
-                processed_shoes.add(shoe_key)
+                if is_new_shoe:
+                    processed_new_shoes += 1
+                    new_shoes_added.append((name, url))  # Store both name and url
+                    logging.info(f"New shoe added to database: {name} - {url}")  # Log with URL
                 
                 # Always insert the current price
                 cursor.execute("""
@@ -320,7 +316,7 @@ def scrape_nike_shoes(url):
                     VALUES (%s, %s, %s, %s)
                 """, (shoe_id, price, reduced_price, discount))
                 conn.commit()
-                processed_new += 1
+                processed_new_prices += 1
                 
             except Exception as e:
                 log_error(f"Database error: {str(e)}")
@@ -330,27 +326,37 @@ def scrape_nike_shoes(url):
             log_error(f"Error processing shoe {processed}: {str(e)}")
             continue
 
+    # Print scraping summary
     print(f"\nScraping Summary:")
     print(f"Total shoes found: {len(shoe_listings)}")
     print(f"Shoes processed: {processed}")
-    print(f"New entries added: {processed_new}")
+    print(f"New shoes added to database: {processed_new_shoes}")
+    if new_shoes_added:  # Only print if there are new shoes
+        print("\nNewly added shoes:")
+        for shoe_name, shoe_url in new_shoes_added:
+            print(f"- {shoe_name} - {shoe_url}")
+    print(f"Price entries added: {processed_new_prices}")
 
     # After processing all shoes, create status report
     create_status_report(missing_counts, processed)
 
-    return processed, processed_new
+    return processed, processed_new_shoes, processed_new_prices, new_shoes_added
 
 def run_scraper():
     start_time = time.time()
     try:
         nike_url = "https://www.nike.com/w/shoes-y7ok"
-        processed, processed_new = scrape_nike_shoes(nike_url)
+        processed, new_shoes, new_prices, new_shoes_list = scrape_nike_shoes(nike_url)
         
         duration = time.time() - start_time
         minutes = int(duration // 60)
         seconds = int(duration % 60)
         
-        logging.info(f"Scrape completed - Processed: {processed}, New: {processed_new}, Time: {minutes}m {seconds}s")
+        logging.info(f"Scrape completed - Processed: {processed}, New shoes: {new_shoes}, New prices: {new_prices}, Time: {minutes}m {seconds}s")
+        if new_shoes_list:
+            logging.info("New shoes added in this run:")
+            for shoe_name, shoe_url in new_shoes_list:
+                logging.info(f"- {shoe_name} - {shoe_url}")
         
     except Exception as e:
         log_error(f"Error during scrape: {str(e)}")
@@ -359,10 +365,9 @@ def start_scheduler():
     # Run once immediately when started
     run_scraper()
     
-    # Schedule to run every hour with random variance (±5 minutes)
+    # Schedule to run every day with random variance (±1 hour)
     while True:
-        # Sleep for 55-65 minutes (3300-3900 seconds)
-        sleep_time = random.randint(3300, 3900)
+        sleep_time = random.randint(79200, 82000)
         minutes = sleep_time // 60
         seconds = sleep_time % 60
         logging.info(f"Next scrape scheduled in {minutes} minutes and {seconds} seconds")
@@ -370,7 +375,7 @@ def start_scheduler():
         run_scraper()
 
 if __name__ == "__main__":
-    print("Soul Search Starting")
+    print("Sole Search Starting")
     print("Will run approximately every hour")
     print("Press Ctrl+C to stop")
     start_scheduler()

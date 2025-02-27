@@ -275,6 +275,78 @@ def get_shoe_prices(shoe_id):
             "status": 500
         }), 500
 
+@app.route('/price-changes')
+def price_changes():
+    try:
+        query = """
+            WITH price_changes AS (
+                SELECT 
+                    p.shoe_id,
+                    p.timestamp,
+                    p.original_price,
+                    p.reduced_price,
+                    LAG(p.original_price) OVER (PARTITION BY p.shoe_id ORDER BY p.timestamp) as prev_original,
+                    LAG(p.reduced_price) OVER (PARTITION BY p.shoe_id ORDER BY p.timestamp) as prev_reduced
+                FROM prices p
+            ),
+            change_events AS (
+                SELECT 
+                    pc.shoe_id,
+                    pc.timestamp,
+                    pc.original_price,
+                    pc.reduced_price
+                FROM price_changes pc
+                WHERE 
+                    (pc.original_price != pc.prev_original OR pc.reduced_price != pc.prev_reduced)
+                    OR (pc.prev_original IS NULL AND pc.prev_reduced IS NULL)  -- First record
+            )
+            SELECT 
+                s.name,
+                s.colorway_code,
+                ce.shoe_id,
+                MIN(ce.original_price) as min_original,
+                MAX(ce.original_price) as max_original,
+                MIN(ce.reduced_price) as min_reduced,
+                MAX(ce.reduced_price) as max_reduced,
+                COUNT(DISTINCT ce.original_price) as price_variations,
+                MIN(ce.timestamp) as first_seen,
+                MAX(ce.timestamp) as last_seen,
+                array_agg(ce.timestamp ORDER BY ce.timestamp) as change_timestamps,
+                array_agg(ce.original_price ORDER BY ce.timestamp) as price_values
+            FROM change_events ce
+            JOIN shoes s ON ce.shoe_id = s.id
+            GROUP BY s.name, s.colorway_code, ce.shoe_id
+            HAVING COUNT(*) > 1
+            ORDER BY COUNT(*) DESC;
+        """
+        
+        cur.execute(query)
+        changes = cur.fetchall()
+        
+        # Convert the results to a list of dictionaries
+        price_changes = [{
+            'name': change[0],
+            'colorway': change[1],
+            'shoe_id': change[2],
+            'min_original': float(change[3]) if change[3] else None,
+            'max_original': float(change[4]) if change[4] else None,
+            'min_reduced': float(change[5]) if change[5] else None,
+            'max_reduced': float(change[6]) if change[6] else None,
+            'price_variations': change[7],
+            'first_seen': change[8].strftime('%Y-%m-%d %H:%M:%S'),
+            'last_seen': change[9].strftime('%Y-%m-%d %H:%M:%S'),
+            'price_history': list(zip(
+                [ts.strftime('%Y-%m-%d %H:%M:%S') for ts in change[10]],
+                [float(p) if p else None for p in change[11]]
+            ))
+        } for change in changes]
+        
+        return render_template('price_changes.html', price_changes=price_changes)
+        
+    except Exception as e:
+        logging.error(f"Error in price changes route: {str(e)}")
+        return f"Error loading price changes: {str(e)}", 500
+
 # Start the server
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

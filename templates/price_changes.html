@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Price Changes</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .price-history {
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: #2b2b2b;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .table {
+            color: #e0e0e0;
+        }
+        
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .table-striped tbody tr:nth-of-type(even) {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+        
+        .table td, .table th {
+            border-top: 1px solid #404040;
+        }
+        
+        .table thead th {
+            border-bottom: 2px solid #404040;
+        }
+        
+        a {
+            color: #00bc8c;
+        }
+        
+        a:hover {
+            color: #008f6b;
+            text-decoration: none;
+        }
+        
+        .container {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        
+        body {
+            background-color: #222;
+            color: #e0e0e0;
+        }
+        
+        h1 {
+            color: #00bc8c;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Shoe Tracker</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="/price-changes">Price Changes</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Shoes with Price Changes</h1>
+        <div class="row">
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Colorway</th>
+                                <th>Price Range</th>
+                                <th>First Seen</th>
+                                <th>Last Seen</th>
+                                <th>Price History</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for change in price_changes %}
+                            <tr>
+                                <td>
+                                    <a href="/api/shoe/{{ change.shoe_id }}/prices" target="_blank">
+                                        {{ change.name }}
+                                    </a>
+                                </td>
+                                <td>{{ change.colorway }}</td>
+                                <td>
+                                    Original: ${{ "%.2f"|format(change.min_original) }} - ${{ "%.2f"|format(change.max_original) }}<br>
+                                    {% if change.min_reduced %}
+                                    Reduced: ${{ "%.2f"|format(change.min_reduced) }} - ${{ "%.2f"|format(change.max_reduced) }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ change.first_seen }}</td>
+                                <td>{{ change.last_seen }}</td>
+                                <td>
+                                    <div class="price-history">
+                                        {% for timestamp, price in change.price_history %}
+                                            {{ timestamp }}: ${{ "%.2f"|format(price) }}<br>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html> 

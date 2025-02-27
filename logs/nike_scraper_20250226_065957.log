@@ -1,0 +1,36 @@
+2025-02-26 07:00:19,897 - WARNING - There was an error managing chromedriver (error sending request for url (https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json): error trying to connect: tcp connect error: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond. (os error 10060)); using driver found in the cache
+2025-02-26 07:00:19,899 - WARNING - Error sending stats to Plausible: error sending request for url (https://plausible.io/api/event): operation timed out
+2025-02-26 07:01:10,528 - ERROR - Failed to initialize browser: Message: unknown error: net::ERR_CONNECTION_TIMED_OUT
+  (Session info: chrome=133.0.6943.141)
+Stacktrace:
+	GetHandleVerifier [0x00007FF694336F15+28773]
+	(No symbol) [0x00007FF6942A2600]
+	(No symbol) [0x00007FF694138FAA]
+	(No symbol) [0x00007FF694135946]
+	(No symbol) [0x00007FF694126709]
+	(No symbol) [0x00007FF694128478]
+	(No symbol) [0x00007FF694126A16]
+	(No symbol) [0x00007FF694126496]
+	(No symbol) [0x00007FF69412615A]
+	(No symbol) [0x00007FF694123CEE]
+	(No symbol) [0x00007FF6941245CC]
+	(No symbol) [0x00007FF69413CDFA]
+	(No symbol) [0x00007FF6941E05AE]
+	(No symbol) [0x00007FF6941B724A]
+	(No symbol) [0x00007FF6941DF6F3]
+	(No symbol) [0x00007FF6941B7023]
+	(No symbol) [0x00007FF69417FF5E]
+	(No symbol) [0x00007FF6941811E3]
+	GetHandleVerifier [0x00007FF69468425D+3490733]
+	GetHandleVerifier [0x00007FF69469BA43+3586963]
+	GetHandleVerifier [0x00007FF69469147D+3544525]
+	GetHandleVerifier [0x00007FF6943FC9DA+838442]
+	(No symbol) [0x00007FF6942AD04F]
+	(No symbol) [0x00007FF6942A9614]
+	(No symbol) [0x00007FF6942A97B6]
+	(No symbol) [0x00007FF694298CE9]
+	BaseThreadInitThunk [0x00007FFDA6E0259D+29]
+	RtlUserThreadStart [0x00007FFDA7E4AF38+40]
+
+2025-02-26 07:01:12,811 - INFO - Scrape completed - Processed: 0, New shoes: 0, New prices: 0, Time: 1m 15s
+2025-02-26 07:01:12,812 - INFO - Next scrape scheduled in 1332 minutes and 36 seconds

@@ -1,0 +1,25 @@
+2025-02-13 20:50:01,936 - ERROR - Failed to initialize browser: Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+	GetHandleVerifier [0x00007FF62DCC02F5+28725]
+	(No symbol) [0x00007FF62DC22AE0]
+	(No symbol) [0x00007FF62DAB510A]
+	(No symbol) [0x00007FF62DAEF993]
+	(No symbol) [0x00007FF62DAEB4F9]
+	(No symbol) [0x00007FF62DB3B28C]
+	(No symbol) [0x00007FF62DB3A870]
+	(No symbol) [0x00007FF62DB2FD53]
+	(No symbol) [0x00007FF62DAFA0E3]
+	(No symbol) [0x00007FF62DAFB471]
+	GetHandleVerifier [0x00007FF62DFEF30D+3366989]
+	GetHandleVerifier [0x00007FF62E0012F0+3440688]
+	GetHandleVerifier [0x00007FF62DFF78FD+3401277]
+	GetHandleVerifier [0x00007FF62DD8AAAB+858091]
+	(No symbol) [0x00007FF62DC2E74F]
+	(No symbol) [0x00007FF62DC2A304]
+	(No symbol) [0x00007FF62DC2A49D]
+	(No symbol) [0x00007FF62DC18B69]
+	BaseThreadInitThunk [0x00007FF97267259D+29]
+	RtlUserThreadStart [0x00007FF97442AF38+40]
+
+2025-02-13 20:50:06,550 - INFO - Scrape completed - Processed: 0, New: 0, Time: 0m 20s
+2025-02-13 20:50:06,550 - INFO - Next scrape scheduled in 62 minutes and 31 seconds
