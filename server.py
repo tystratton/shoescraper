@@ -14,7 +14,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Connect to your PostgreSQL database
+# Connect to PostgreSQL database
 DB_NAME = os.getenv("PG_DB")
 DB_USER = os.getenv("PG_USER")
 DB_PASSWORD = os.getenv("PG_PASSWORD")
