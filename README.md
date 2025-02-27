@@ -33,6 +33,8 @@ A web application that monitors and analyzes shoe prices across different retail
 8. Visit `http://localhost:5000` in your browser
 
 ## API Endpoints
+- `/` - Pipeline health
+- `/guide` - Show different URL combinations for API
 - `/api/shoes` - Get all shoes with filtering options
 - `/api/shoe/<id>/prices` - Get price history for a specific shoe
 - `/price-changes` - View all recorded price changes
