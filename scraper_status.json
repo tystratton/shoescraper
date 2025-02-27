@@ -24,5 +24,19 @@
         "warning": false,
         "danger": false,
         "count": 0
+    },
+    "last_successful_run": "2024-02-13T12:34:56.789012",
+    "total_processed": 1492,
+    "last_run": "2025-02-13T18:01:35.812467",
+    "status": "success",
+    "error_message": null,
+    "current_page": 1,
+    "total_pages": 50,
+    "pipeline_stats": {
+        "total_shoes": 1534,
+        "successful_scrapes": 1492,
+        "failed_scrapes": 42,
+        "success_rate": 97.3,
+        "average_processing_time": 2.5
     }
 }

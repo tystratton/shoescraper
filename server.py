@@ -3,8 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 import logging
-from datetime import datetime
-import json
+
 
 app = Flask(__name__)
 load_dotenv()
@@ -31,7 +30,21 @@ cur = conn.cursor()
 
 @app.route('/guide')
 def guide():
-    return render_template('guide.html')
+    # Define the available filters
+    available_filters = [
+        {"name": "name", "example": "?name=Dunk Low", "description": "Search by shoe name"},
+        {"name": "type", "example": "?type=Mens", "description": "Mens, Womens, Kids, Baseball, etc."},
+        {"name": "discounted", "example": "?discounted=true", "description": "Show only items on sale"},
+        {"name": "min_price", "example": "?min_price=50", "description": "Minimum current price"},
+        {"name": "max_price", "example": "?max_price=100", "description": "Maximum current price"},
+        {"name": "year", "example": "?year=2024", "description": "Filter by year added"},
+        {"name": "month", "example": "?month=2", "description": "Filter by month (1-12)"},
+        {"name": "day", "example": "?day=13", "description": "Filter by day (1-31)"},
+        {"name": "page", "example": "?page=2", "description": "50 items per page"},
+        # Add more filters as needed
+    ]
+    
+    return render_template('guide.html', available_filters=available_filters)
 
 @app.route('/')
 def index():
@@ -346,6 +359,53 @@ def price_changes():
     except Exception as e:
         logging.error(f"Error in price changes route: {str(e)}")
         return f"Error loading price changes: {str(e)}", 500
+
+@app.route('/data_visualization')
+def data_visualization():
+    return render_template('data_visualization.html')
+
+@app.route("/api/price_trends", methods=["GET"])
+def get_price_trends():
+    try:
+        # Get average prices by date
+        query = """
+            SELECT 
+                DATE(timestamp) as date,
+                AVG(original_price) as avg_original,
+                AVG(reduced_price) as avg_reduced
+            FROM prices
+            WHERE original_price IS NOT NULL
+            GROUP BY DATE(timestamp)
+            ORDER BY date
+        """
+        
+        cur.execute(query)
+        trends = cur.fetchall()
+        
+        if not trends:
+            return jsonify({
+                "error": "No price trend data available",
+                "status": 404
+            }), 404
+            
+        # Format the data for the chart
+        dates = [trend[0].strftime('%Y-%m-%d') for trend in trends]
+        avg_original_prices = [float(trend[1]) if trend[1] else None for trend in trends]
+        avg_reduced_prices = [float(trend[2]) if trend[2] else None for trend in trends]
+        
+        return jsonify({
+            "status": 200,
+            "dates": dates,
+            "avg_original_prices": avg_original_prices,
+            "avg_reduced_prices": avg_reduced_prices
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in get_price_trends: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "status": 500
+        }), 500
 
 # Start the server
 if __name__ == "__main__":
