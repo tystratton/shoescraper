@@ -1,6 +1,6 @@
 # Sole Search API
 
-A web application that monitors and analyzes shoe prices across different retailers. Built with Flask and PostgreSQL, this tool helps users track price changes, discounts, and historical pricing data for various shoe models.
+A web application that monitors and analyzes Nike shoe prices. Built with Python and PostgreSQL, this tool helps users track price changes, pipeline health, and offers an API that queries a database I created by web scraping Nike's website. Database available in this repository.
 
 ## Features
 - Real-time price monitoring
